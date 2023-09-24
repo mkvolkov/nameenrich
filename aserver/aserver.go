@@ -51,4 +51,12 @@ func (s *AServer) Run(ctx context.Context) error {
 
 func (s *AServer) MapHandlers(rs Routes) {
 	s.AtrServer.GET("/men", rs.GetMen())
+	s.AtrServer.GET("/women", rs.GetWomen())
+	s.AtrServer.GET("/name", rs.GetPeopleByName())
+	s.AtrServer.GET("/age", rs.GetPeopleByAge())
+	s.AtrServer.GET("/country", rs.GetCountryByName())
+	s.AtrServer.POST("/adduser", rs.AddUser())
+	s.AtrServer.DELETE("/deluser", rs.DeleteUserByID())
+	s.AtrServer.POST("/chsurname", rs.ChangeSurname())
+	s.AtrServer.POST("/chage", rs.ChangeAge())
 }

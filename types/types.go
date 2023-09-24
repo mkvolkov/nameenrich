@@ -36,3 +36,23 @@ type Nationality struct {
 type NationData struct {
 	Nationalities []Nationality `json:"country"`
 }
+
+type NewUser struct {
+	Name       string `json:"name"`
+	Surname    string `json:"surname"`
+	Patronymic string `json:"patronymic"`
+}
+
+type DeleteID struct {
+	ID int `json:"id"`
+}
+
+type SetSurname struct {
+	ID      int    `json:"id"`
+	Surname string `json:"surname"`
+}
+
+type SetAge struct {
+	ID  int `json:"id"`
+	Age int `json:"age"`
+}
