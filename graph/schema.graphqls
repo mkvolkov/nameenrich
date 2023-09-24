@@ -1,0 +1,33 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+type Person {
+  id: ID!
+  name: String!
+  surname: String!
+  patronymic: String!
+  age: Int!
+  gender: String!
+}
+
+type Country {
+  id: ID!
+  name: String!
+  country: String!
+  probability: Float!
+}
+
+type Query {
+  men: [Person!]!
+  women: [Person!]!
+  people(name: String!): [Person!]!
+  pplage(age: Int!, less: Boolean!, desc: Boolean!): [Person!]!
+  country(name: String!): [Country!]!
+}
+
+type Mutation {
+  deletePerson(id: Int!): Person!
+  changeSurname(id: Int!, surname: String!): Person!
+  changeAge(id: Int!, age: Int!): Person!
+}
