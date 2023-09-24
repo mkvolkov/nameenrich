@@ -5,6 +5,8 @@ import "github.com/spf13/viper"
 type Cfg struct {
 	Port        string `mapstructure:"PORT"`
 	PostgresURL string `mapstructure:"POSTGRES_URL"`
+	AtrHost     string `mapstructure:"ATREUGO_HOST"`
+	AtrPort     string `mapstructure:"ATREUGO_PORT"`
 }
 
 func LoadConfig(cfg *Cfg) error {

@@ -6,7 +6,7 @@ package graph
 
 import (
 	"context"
-	"gq_enrich/graph/model"
+	"nameenrich/graph/model"
 )
 
 // DeletePerson is the resolver for the deletePerson field.

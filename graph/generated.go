@@ -8,7 +8,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"gq_enrich/graph/model"
+	"nameenrich/graph/model"
 	"strconv"
 	"sync"
 	"sync/atomic"
