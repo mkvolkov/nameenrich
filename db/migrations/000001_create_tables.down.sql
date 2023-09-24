@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS nation;
+
+DROP TABLE IF EXISTS people;
+
+DROP TABLE IF EXISTS first_names;
