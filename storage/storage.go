@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"nameenrich/types"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -25,6 +26,9 @@ const (
 
 	querySelectWomen = `SELECT id, p_name, surname, patronymic, age
         FROM people WHERE gender LIKE 'female'`
+
+	queryGetPeopleByID = `SELECT *
+		FROM people WHERE id = $1`
 
 	queryGetPeopleByName = `SELECT id, p_name, surname, patronymic, age, gender
         FROM people WHERE p_name ILIKE $1::text`
@@ -71,8 +75,9 @@ type GetCountryResult struct {
 	Probability float64 `db:"probability"`
 }
 
-func WriteData(db *sqlx.DB, params *types.MsgEnriched) error {
+func WriteData(db *sqlx.DB, rconn redis.Conn, params *types.MsgEnriched) error {
 	var err error
+
 	_, err = db.ExecContext(
 		context.Background(),
 		queryInsertFirstName,
@@ -81,6 +86,15 @@ func WriteData(db *sqlx.DB, params *types.MsgEnriched) error {
 
 	if err == nil {
 		for i := 0; i < len(params.Nationalites); i++ {
+			_, err = rconn.Do(
+				"HMSET",
+				params.Name,
+				params.Nationalites[i].Country,
+				params.Nationalites[i].Probability)
+			if err != nil {
+				return err
+			}
+
 			_, err = db.ExecContext(
 				context.Background(),
 				queryInsertNation,
@@ -135,6 +149,21 @@ func GetWomen(db *sqlx.DB) (result []GetPeopleResult, err error) {
 	return result, nil
 }
 
+func GetPeopleByID(db *sqlx.DB, id int) (result []GetPeopleResult, err error) {
+	err = db.SelectContext(
+		context.Background(),
+		&result,
+		queryGetPeopleByID,
+		id,
+	)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
 func GetPeopleByName(db *sqlx.DB, name string) (result []GetPeopleResult, err error) {
 	err = db.SelectContext(
 		context.Background(),
@@ -150,7 +179,7 @@ func GetPeopleByName(db *sqlx.DB, name string) (result []GetPeopleResult, err er
 	return result, nil
 }
 
-func SelectPeopleByAge(db *sqlx.DB, age int, less, desc bool) (result []GetPeopleResult, err error) {
+func GetPeopleByAge(db *sqlx.DB, age int, less, desc bool) (result []GetPeopleResult, err error) {
 	if less {
 		err = db.SelectContext(
 			context.Background(),
@@ -176,7 +205,7 @@ func SelectPeopleByAge(db *sqlx.DB, age int, less, desc bool) (result []GetPeopl
 	return result, nil
 }
 
-func SelectCountryByName(db *sqlx.DB, name string) (result []GetCountryResult, err error) {
+func GetCountryByName(db *sqlx.DB, name string) (result []GetCountryResult, err error) {
 	err = db.SelectContext(
 		context.Background(),
 		&result,

@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-json"
+	"github.com/gomodule/redigo/redis"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -40,6 +41,13 @@ func main() {
 	}
 
 	dBase := graph.Connect(cMainCfg.PostgresURL)
+
+	redisAddr := fmt.Sprintf("%s:%s", cMainCfg.RedisHost, cMainCfg.RedisPort)
+	rConn, err := redis.Dial("tcp", redisAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rConn.Close()
 
 	kLog := log.New(os.Stdout, "kafka reader: ", 0)
 
@@ -85,7 +93,7 @@ func main() {
 
 			enrich.Enrichment(&decMsg, &enrMsg)
 
-			err = storage.WriteData(dBase, &enrMsg)
+			err = storage.WriteData(dBase, rConn, &enrMsg)
 			CheckError(err)
 		}
 	}()
@@ -94,7 +102,7 @@ func main() {
 	defer cancel()
 
 	go func() {
-		aServer := aserver.NewServer(cMainCfg.AtrHost, cMainCfg.AtrPort, dBase)
+		aServer := aserver.NewServer(cMainCfg.AtrHost, cMainCfg.AtrPort, dBase, rConn)
 
 		err = aServer.Run(aCtx)
 		if err != nil {

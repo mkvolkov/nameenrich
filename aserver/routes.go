@@ -5,6 +5,7 @@ import (
 	"nameenrich/storage"
 
 	"github.com/goccy/go-json"
+	"github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
 	"github.com/savsgio/atreugo/v11"
 )
@@ -17,6 +18,7 @@ const (
 type Routes interface {
 	GetMen() atreugo.View
 	GetWomen() atreugo.View
+	GetPeopleByID() atreugo.View
 	GetPeopleByName() atreugo.View
 	GetPeopleByAge() atreugo.View
 	GetCountryByName() atreugo.View
@@ -27,7 +29,12 @@ type Routes interface {
 }
 
 type RBase struct {
-	Psql *sqlx.DB
+	Psql  *sqlx.DB
+	Rconn redis.Conn
+}
+
+type FilterID struct {
+	ID int `json:"id"`
 }
 
 type FilterName struct {
@@ -76,6 +83,25 @@ func (r *RBase) GetWomen() atreugo.View {
 	}
 }
 
+func (r *RBase) GetPeopleByID() atreugo.View {
+	return func(ctx *atreugo.RequestCtx) error {
+		body := ctx.PostBody()
+
+		filterID := &FilterID{}
+		err := json.Unmarshal(body, filterID)
+		if err != nil {
+			return ctx.ErrorResponse(err, ResponseBadReq)
+		}
+
+		data, err := logic.GetPersonByID(filterID.ID, r.Psql, r.Rconn)
+		if err != nil {
+			return ctx.TextResponse("Error in GetPeopleByID", ResponseBadReq)
+		}
+
+		return ctx.JSONResponse(data, ResponseOK)
+	}
+}
+
 func (r *RBase) GetPeopleByName() atreugo.View {
 	return func(ctx *atreugo.RequestCtx) error {
 		body := ctx.PostBody()
@@ -105,7 +131,7 @@ func (r *RBase) GetPeopleByAge() atreugo.View {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
 
-		data, err := storage.SelectPeopleByAge(r.Psql, filterAge.Age, filterAge.Less, filterAge.Desc)
+		data, err := storage.GetPeopleByAge(r.Psql, filterAge.Age, filterAge.Less, filterAge.Desc)
 		if err != nil {
 			return ctx.TextResponse("Error in GetPeopleByAge", ResponseBadReq)
 		}
@@ -124,7 +150,8 @@ func (r *RBase) GetCountryByName() atreugo.View {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
 
-		data, err := storage.SelectCountryByName(r.Psql, filterName.Name)
+		//data, err := storage.GetCountryByName(r.Psql, filterName.Name)
+		data, err := logic.GetCountryByName(filterName.Name, r.Psql, r.Rconn)
 		if err != nil {
 			return ctx.TextResponse("Error in GetCountryByName", ResponseBadReq)
 		}
@@ -143,7 +170,7 @@ func (r *RBase) AddUser() atreugo.View {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
 
-		err = logic.AddNewUser(newUser, r.Psql)
+		err = logic.AddNewUser(newUser, r.Psql, r.Rconn)
 		if err != nil {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
@@ -162,7 +189,7 @@ func (r *RBase) DeleteUserByID() atreugo.View {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
 
-		err = logic.DeleteUser(ID.ID, r.Psql)
+		err = logic.DeleteUser(ID.ID, r.Psql, r.Rconn)
 		if err != nil {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
@@ -181,7 +208,7 @@ func (r *RBase) ChangeSurname() atreugo.View {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
 
-		err = logic.ChangeSurname(SurnameData.ID, SurnameData.Surname, r.Psql)
+		err = logic.ChangeSurname(SurnameData.ID, SurnameData.Surname, r.Psql, r.Rconn)
 		if err != nil {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
@@ -200,7 +227,7 @@ func (r *RBase) ChangeAge() atreugo.View {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}
 
-		err = logic.ChangeAge(AgeStruct.ID, AgeStruct.Age, r.Psql)
+		err = logic.ChangeAge(AgeStruct.ID, AgeStruct.Age, r.Psql, r.Rconn)
 		if err != nil {
 			return ctx.ErrorResponse(err, ResponseBadReq)
 		}

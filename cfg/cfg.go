@@ -7,6 +7,8 @@ type Cfg struct {
 	PostgresURL string `mapstructure:"POSTGRES_URL"`
 	AtrHost     string `mapstructure:"ATREUGO_HOST"`
 	AtrPort     string `mapstructure:"ATREUGO_PORT"`
+	RedisHost   string `mapstructure:"REDIS_HOST"`
+	RedisPort   string `mapstructure:"REDIS_PORT"`
 }
 
 func LoadConfig(cfg *Cfg) error {

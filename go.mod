@@ -6,6 +6,7 @@ require (
 	github.com/99designs/gqlgen v0.17.38
 	github.com/go-playground/validator/v10 v10.15.4
 	github.com/goccy/go-json v0.10.2
+	github.com/gomodule/redigo v1.8.9
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
 	github.com/savsgio/atreugo/v11 v11.10.1
