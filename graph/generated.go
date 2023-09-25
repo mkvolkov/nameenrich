@@ -47,15 +47,15 @@ type DirectiveRoot struct {
 type ComplexityRoot struct {
 	Country struct {
 		Country     func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Name        func(childComplexity int) int
 		Probability func(childComplexity int) int
 	}
 
 	Mutation struct {
+		AddPerson     func(childComplexity int, input model.NewPerson) int
 		ChangeAge     func(childComplexity int, id int, age int) int
 		ChangeSurname func(childComplexity int, id int, surname string) int
 		DeletePerson  func(childComplexity int, id int) int
+		GetPerson     func(childComplexity int, id int) int
 	}
 
 	Person struct {
@@ -77,6 +77,8 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
+	AddPerson(ctx context.Context, input model.NewPerson) (*model.Person, error)
+	GetPerson(ctx context.Context, id int) ([]*model.Person, error)
 	DeletePerson(ctx context.Context, id int) (*model.Person, error)
 	ChangeSurname(ctx context.Context, id int, surname string) (*model.Person, error)
 	ChangeAge(ctx context.Context, id int, age int) (*model.Person, error)
@@ -111,26 +113,24 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Country.Country(childComplexity), true
 
-	case "Country.id":
-		if e.complexity.Country.ID == nil {
-			break
-		}
-
-		return e.complexity.Country.ID(childComplexity), true
-
-	case "Country.name":
-		if e.complexity.Country.Name == nil {
-			break
-		}
-
-		return e.complexity.Country.Name(childComplexity), true
-
 	case "Country.probability":
 		if e.complexity.Country.Probability == nil {
 			break
 		}
 
 		return e.complexity.Country.Probability(childComplexity), true
+
+	case "Mutation.addPerson":
+		if e.complexity.Mutation.AddPerson == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addPerson_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddPerson(childComplexity, args["input"].(model.NewPerson)), true
 
 	case "Mutation.changeAge":
 		if e.complexity.Mutation.ChangeAge == nil {
@@ -167,6 +167,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeletePerson(childComplexity, args["id"].(int)), true
+
+	case "Mutation.getPerson":
+		if e.complexity.Mutation.GetPerson == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_getPerson_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GetPerson(childComplexity, args["id"].(int)), true
 
 	case "Person.age":
 		if e.complexity.Person.Age == nil {
@@ -267,7 +279,9 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	rc := graphql.GetOperationContext(ctx)
 	ec := executionContext{rc, e, 0, 0, make(chan graphql.DeferredResult)}
-	inputUnmarshalMap := graphql.BuildUnmarshalerMap()
+	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputNewPerson,
+	)
 	first := true
 
 	switch rc.Operation.Operation {
@@ -383,6 +397,21 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_addPerson_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NewPerson
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNNewPerson2nameenrichᚋgraphᚋmodelᚐNewPerson(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_changeAge_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -432,6 +461,21 @@ func (ec *executionContext) field_Mutation_changeSurname_args(ctx context.Contex
 }
 
 func (ec *executionContext) field_Mutation_deletePerson_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_getPerson_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
@@ -562,94 +606,6 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _Country_id(ctx context.Context, field graphql.CollectedField, obj *model.Country) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Country_id(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Country_id(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Country",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Country_name(ctx context.Context, field graphql.CollectedField, obj *model.Country) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Country_name(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Country_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Country",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Country_country(ctx context.Context, field graphql.CollectedField, obj *model.Country) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Country_country(ctx, field)
 	if err != nil {
@@ -738,6 +694,144 @@ func (ec *executionContext) fieldContext_Country_probability(ctx context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_addPerson(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_addPerson(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddPerson(rctx, fc.Args["input"].(model.NewPerson))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Person)
+	fc.Result = res
+	return ec.marshalNPerson2ᚖnameenrichᚋgraphᚋmodelᚐPerson(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addPerson(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Person_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Person_name(ctx, field)
+			case "surname":
+				return ec.fieldContext_Person_surname(ctx, field)
+			case "patronymic":
+				return ec.fieldContext_Person_patronymic(ctx, field)
+			case "age":
+				return ec.fieldContext_Person_age(ctx, field)
+			case "gender":
+				return ec.fieldContext_Person_gender(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Person", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addPerson_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_getPerson(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_getPerson(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().GetPerson(rctx, fc.Args["id"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Person)
+	fc.Result = res
+	return ec.marshalNPerson2ᚕᚖnameenrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_getPerson(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Person_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Person_name(ctx, field)
+			case "surname":
+				return ec.fieldContext_Person_surname(ctx, field)
+			case "patronymic":
+				return ec.fieldContext_Person_patronymic(ctx, field)
+			case "age":
+				return ec.fieldContext_Person_age(ctx, field)
+			case "gender":
+				return ec.fieldContext_Person_gender(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Person", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_getPerson_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_deletePerson(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_deletePerson(ctx, field)
 	if err != nil {
@@ -766,7 +860,7 @@ func (ec *executionContext) _Mutation_deletePerson(ctx context.Context, field gr
 	}
 	res := resTmp.(*model.Person)
 	fc.Result = res
-	return ec.marshalNPerson2ᚖgq_enrichᚋgraphᚋmodelᚐPerson(ctx, field.Selections, res)
+	return ec.marshalNPerson2ᚖnameenrichᚋgraphᚋmodelᚐPerson(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_deletePerson(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -835,7 +929,7 @@ func (ec *executionContext) _Mutation_changeSurname(ctx context.Context, field g
 	}
 	res := resTmp.(*model.Person)
 	fc.Result = res
-	return ec.marshalNPerson2ᚖgq_enrichᚋgraphᚋmodelᚐPerson(ctx, field.Selections, res)
+	return ec.marshalNPerson2ᚖnameenrichᚋgraphᚋmodelᚐPerson(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_changeSurname(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -904,7 +998,7 @@ func (ec *executionContext) _Mutation_changeAge(ctx context.Context, field graph
 	}
 	res := resTmp.(*model.Person)
 	fc.Result = res
-	return ec.marshalNPerson2ᚖgq_enrichᚋgraphᚋmodelᚐPerson(ctx, field.Selections, res)
+	return ec.marshalNPerson2ᚖnameenrichᚋgraphᚋmodelᚐPerson(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_changeAge(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1237,7 +1331,7 @@ func (ec *executionContext) _Query_men(ctx context.Context, field graphql.Collec
 	}
 	res := resTmp.([]*model.Person)
 	fc.Result = res
-	return ec.marshalNPerson2ᚕᚖgq_enrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
+	return ec.marshalNPerson2ᚕᚖnameenrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_men(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1295,7 +1389,7 @@ func (ec *executionContext) _Query_women(ctx context.Context, field graphql.Coll
 	}
 	res := resTmp.([]*model.Person)
 	fc.Result = res
-	return ec.marshalNPerson2ᚕᚖgq_enrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
+	return ec.marshalNPerson2ᚕᚖnameenrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_women(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1353,7 +1447,7 @@ func (ec *executionContext) _Query_people(ctx context.Context, field graphql.Col
 	}
 	res := resTmp.([]*model.Person)
 	fc.Result = res
-	return ec.marshalNPerson2ᚕᚖgq_enrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
+	return ec.marshalNPerson2ᚕᚖnameenrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_people(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1422,7 +1516,7 @@ func (ec *executionContext) _Query_pplage(ctx context.Context, field graphql.Col
 	}
 	res := resTmp.([]*model.Person)
 	fc.Result = res
-	return ec.marshalNPerson2ᚕᚖgq_enrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
+	return ec.marshalNPerson2ᚕᚖnameenrichᚋgraphᚋmodelᚐPersonᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_pplage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1491,7 +1585,7 @@ func (ec *executionContext) _Query_country(ctx context.Context, field graphql.Co
 	}
 	res := resTmp.([]*model.Country)
 	fc.Result = res
-	return ec.marshalNCountry2ᚕᚖgq_enrichᚋgraphᚋmodelᚐCountryᚄ(ctx, field.Selections, res)
+	return ec.marshalNCountry2ᚕᚖnameenrichᚋgraphᚋmodelᚐCountryᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_country(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1502,10 +1596,6 @@ func (ec *executionContext) fieldContext_Query_country(ctx context.Context, fiel
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Country_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Country_name(ctx, field)
 			case "country":
 				return ec.fieldContext_Country_country(ctx, field)
 			case "probability":
@@ -3430,6 +3520,53 @@ func (ec *executionContext) fieldContext___Type_specifiedByURL(ctx context.Conte
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputNewPerson(ctx context.Context, obj interface{}) (model.NewPerson, error) {
+	var it model.NewPerson
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "surname", "patronymic"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "surname":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("surname"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Surname = data
+		case "patronymic":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("patronymic"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Patronymic = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -3449,16 +3586,6 @@ func (ec *executionContext) _Country(ctx context.Context, sel ast.SelectionSet, 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Country")
-		case "id":
-			out.Values[i] = ec._Country_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "name":
-			out.Values[i] = ec._Country_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "country":
 			out.Values[i] = ec._Country_country(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -3511,6 +3638,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "addPerson":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addPerson(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "getPerson":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_getPerson(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "deletePerson":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deletePerson(ctx, field)
@@ -4120,7 +4261,7 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNCountry2ᚕᚖgq_enrichᚋgraphᚋmodelᚐCountryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Country) graphql.Marshaler {
+func (ec *executionContext) marshalNCountry2ᚕᚖnameenrichᚋgraphᚋmodelᚐCountryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Country) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4144,7 +4285,7 @@ func (ec *executionContext) marshalNCountry2ᚕᚖgq_enrichᚋgraphᚋmodelᚐCo
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNCountry2ᚖgq_enrichᚋgraphᚋmodelᚐCountry(ctx, sel, v[i])
+			ret[i] = ec.marshalNCountry2ᚖnameenrichᚋgraphᚋmodelᚐCountry(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4164,7 +4305,7 @@ func (ec *executionContext) marshalNCountry2ᚕᚖgq_enrichᚋgraphᚋmodelᚐCo
 	return ret
 }
 
-func (ec *executionContext) marshalNCountry2ᚖgq_enrichᚋgraphᚋmodelᚐCountry(ctx context.Context, sel ast.SelectionSet, v *model.Country) graphql.Marshaler {
+func (ec *executionContext) marshalNCountry2ᚖnameenrichᚋgraphᚋmodelᚐCountry(ctx context.Context, sel ast.SelectionSet, v *model.Country) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4219,11 +4360,16 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) marshalNPerson2gq_enrichᚋgraphᚋmodelᚐPerson(ctx context.Context, sel ast.SelectionSet, v model.Person) graphql.Marshaler {
+func (ec *executionContext) unmarshalNNewPerson2nameenrichᚋgraphᚋmodelᚐNewPerson(ctx context.Context, v interface{}) (model.NewPerson, error) {
+	res, err := ec.unmarshalInputNewPerson(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNPerson2nameenrichᚋgraphᚋmodelᚐPerson(ctx context.Context, sel ast.SelectionSet, v model.Person) graphql.Marshaler {
 	return ec._Person(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNPerson2ᚕᚖgq_enrichᚋgraphᚋmodelᚐPersonᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Person) graphql.Marshaler {
+func (ec *executionContext) marshalNPerson2ᚕᚖnameenrichᚋgraphᚋmodelᚐPersonᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Person) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4247,7 +4393,7 @@ func (ec *executionContext) marshalNPerson2ᚕᚖgq_enrichᚋgraphᚋmodelᚐPer
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNPerson2ᚖgq_enrichᚋgraphᚋmodelᚐPerson(ctx, sel, v[i])
+			ret[i] = ec.marshalNPerson2ᚖnameenrichᚋgraphᚋmodelᚐPerson(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4267,7 +4413,7 @@ func (ec *executionContext) marshalNPerson2ᚕᚖgq_enrichᚋgraphᚋmodelᚐPer
 	return ret
 }
 
-func (ec *executionContext) marshalNPerson2ᚖgq_enrichᚋgraphᚋmodelᚐPerson(ctx context.Context, sel ast.SelectionSet, v *model.Person) graphql.Marshaler {
+func (ec *executionContext) marshalNPerson2ᚖnameenrichᚋgraphᚋmodelᚐPerson(ctx context.Context, sel ast.SelectionSet, v *model.Person) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")

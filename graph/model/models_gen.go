@@ -3,10 +3,14 @@
 package model
 
 type Country struct {
-	ID          string  `json:"id" db:"rec_id"`
-	Name        string  `json:"name" db:"user_name"`
 	Country     string  `json:"country" db:"country_id"`
 	Probability float64 `json:"probability" db:"probability"`
+}
+
+type NewPerson struct {
+	Name       string `json:"name"`
+	Surname    string `json:"surname"`
+	Patronymic string `json:"patronymic"`
 }
 
 type Person struct {

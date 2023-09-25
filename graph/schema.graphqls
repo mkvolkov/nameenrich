@@ -12,8 +12,6 @@ type Person {
 }
 
 type Country {
-  id: ID!
-  name: String!
   country: String!
   probability: Float!
 }
@@ -26,7 +24,15 @@ type Query {
   country(name: String!): [Country!]!
 }
 
+input NewPerson {
+  name: String!
+  surname: String!
+  patronymic: String!
+}
+
 type Mutation {
+  addPerson(input: NewPerson!): Person!
+  getPerson(id: Int!): [Person!]!
   deletePerson(id: Int!): Person!
   changeSurname(id: Int!, surname: String!): Person!
   changeAge(id: Int!, age: Int!): Person!

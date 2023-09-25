@@ -6,17 +6,118 @@ package graph
 
 import (
 	"context"
+	"fmt"
 	"nameenrich/graph/model"
+	"nameenrich/logic"
+	"strconv"
+
+	"github.com/gomodule/redigo/redis"
 )
+
+// AddPerson is the resolver for the addPerson field.
+func (r *mutationResolver) AddPerson(ctx context.Context, input model.NewPerson) (*model.Person, error) {
+	var person = &model.Person{}
+
+	var user logic.NewUser
+	user.Name = input.Name
+	user.Surname = input.Surname
+	user.Patronymic = input.Patronymic
+
+	err := logic.AddNewUser(&user, r.DB, r.RConn)
+	if err != nil {
+		return person, err
+	}
+
+	return person, nil
+}
+
+// GetPerson is the resolver for the getPerson field.
+func (r *mutationResolver) GetPerson(ctx context.Context, id int) ([]*model.Person, error) {
+	var persons []*model.Person
+	values, err := redis.Strings(r.RConn.Do("HGETALL", id))
+
+	queryGetPeopleByID := `SELECT *
+	FROM people WHERE id = $1`
+
+	if err != nil {
+		err = r.DB.SelectContext(
+			context.Background(),
+			&persons,
+			queryGetPeopleByID,
+			id,
+		)
+
+		if err != nil {
+			return persons, err
+		}
+
+		return persons, nil
+	}
+	if len(values) == 0 {
+		err = r.DB.SelectContext(
+			context.Background(),
+			&persons,
+			queryGetPeopleByID,
+			id,
+		)
+
+		if err != nil {
+			return persons, err
+		} else {
+			fmt.Println("WRITE TO REDIS")
+			_, err = r.RConn.Do(
+				"HMSET",
+				persons[0].ID,
+				"p_name",
+				persons[0].Name,
+				"surname",
+				persons[0].Surname,
+				"patronymic",
+				persons[0].Patronymic,
+				"age",
+				persons[0].Age,
+				"gender",
+				persons[0].Gender,
+			)
+			if err != nil {
+				return persons, err
+			}
+		}
+
+		return persons, nil
+	} else {
+		fmt.Println("FOUND IN REDIS")
+		res := &model.Person{}
+		idStr := strconv.Itoa(id)
+		res.ID = idStr
+		res.Name = values[1]
+		res.Surname = values[3]
+		res.Patronymic = values[5]
+		age, err := strconv.Atoi(values[7])
+		if err != nil {
+			return persons, err
+		}
+		res.Age = age
+		res.Gender = values[9]
+		persons = append(persons, res)
+	}
+
+	return persons, nil
+}
 
 // DeletePerson is the resolver for the deletePerson field.
 func (r *mutationResolver) DeletePerson(ctx context.Context, id int) (*model.Person, error) {
 	var person = &model.Person{}
 
+	_, err := r.RConn.Do("DEL", id)
+	if err != nil {
+		return person, err
+	}
+
 	queryDeletePersonByID := `DELETE FROM people
 		WHERE id = $1`
 
-	_, err := r.DB.ExecContext(
+	_, err = r.DB.ExecContext(
 		context.Background(),
 		queryDeletePersonByID,
 		id,
@@ -33,10 +134,22 @@ func (r *mutationResolver) DeletePerson(ctx context.Context, id int) (*model.Per
 func (r *mutationResolver) ChangeSurname(ctx context.Context, id int, surname string) (*model.Person, error) {
 	var person = &model.Person{}
 
+	ok, err := redis.Bool(r.RConn.Do("EXISTS", id))
+	if err != nil {
+		return person, err
+	}
+
+	if ok {
+		_, err = r.RConn.Do("HSET", id, "surname", surname)
+		if err != nil {
+			return person, err
+		}
+	}
+
 	queryChangeSurname := `UPDATE people
 		SET surname = $2 WHERE id = $1`
 
-	_, err := r.DB.ExecContext(
+	_, err = r.DB.ExecContext(
 		context.Background(),
 		queryChangeSurname,
 		id,
@@ -54,10 +167,22 @@ func (r *mutationResolver) ChangeSurname(ctx context.Context, id int, surname st
 func (r *mutationResolver) ChangeAge(ctx context.Context, id int, age int) (*model.Person, error) {
 	var person = &model.Person{}
 
+	ok, err := redis.Bool(r.RConn.Do("EXISTS", id))
+	if err != nil {
+		return person, err
+	}
+
+	if ok {
+		_, err := r.RConn.Do("HSET", id, "age", age)
+		if err != nil {
+			return person, err
+		}
+	}
+
 	queryChangeAge := `UPDATE people
 		SET age = $2 WHERE id = $1`
 
-	_, err := r.DB.ExecContext(
+	_, err = r.DB.ExecContext(
 		context.Background(),
 		queryChangeAge,
 		id,
@@ -177,10 +302,44 @@ func (r *queryResolver) Pplage(ctx context.Context, age int, less bool, desc boo
 func (r *queryResolver) Country(ctx context.Context, name string) ([]*model.Country, error) {
 	var countries []*model.Country
 
-	queryGetCountriesByName := `SELECT rec_id, user_name, country_id, probability
+	ok, err := redis.Bool(r.RConn.Do("EXISTS", name))
+	if err != nil {
+		return countries, err
+	}
+
+	queryGetCountriesByName := `SELECT country_id, probability
 		FROM nation WHERE user_name ILIKE $1::text`
 
-	err := r.DB.SelectContext(
+	if ok {
+		fmt.Println("NAME FOUND IN REDIS")
+		values, err := redis.Strings(r.RConn.Do("HGETALL", name))
+		if err != nil {
+			err := r.DB.SelectContext(
+				context.Background(),
+				&countries,
+				queryGetCountriesByName,
+				name,
+			)
+
+			if err != nil {
+				return countries, err
+			}
+		}
+
+		for i := 0; i < len(values); i += 2 {
+			countryRes := model.Country{}
+			countryRes.Country = values[i]
+			fVal, err := strconv.ParseFloat(values[i+1], 64)
+			if err != nil {
+				return countries, err
+			}
+			countryRes.Probability = fVal
+
+			countries = append(countries, &countryRes)
+		}
+	}
+
+	err = r.DB.SelectContext(
 		context.Background(),
 		&countries,
 		queryGetCountriesByName,
