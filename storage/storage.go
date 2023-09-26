@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"nameenrich/types"
 
 	"github.com/gomodule/redigo/redis"
@@ -103,7 +102,7 @@ func WriteData(db *sqlx.DB, rconn redis.Conn, params *types.MsgEnriched) error {
 				params.Nationalites[i].Probability,
 			)
 			if err != nil {
-				fmt.Println("Error inserting nationality: ", err.Error())
+				return err
 			}
 		}
 	}

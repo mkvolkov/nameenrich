@@ -6,7 +6,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"nameenrich/graph/model"
 	"nameenrich/logic"
 	"strconv"
@@ -64,7 +63,6 @@ func (r *mutationResolver) GetPerson(ctx context.Context, id int) ([]*model.Pers
 		if err != nil {
 			return persons, err
 		} else {
-			fmt.Println("WRITE TO REDIS")
 			_, err = r.RConn.Do(
 				"HMSET",
 				persons[0].ID,
@@ -86,7 +84,6 @@ func (r *mutationResolver) GetPerson(ctx context.Context, id int) ([]*model.Pers
 
 		return persons, nil
 	} else {
-		fmt.Println("FOUND IN REDIS")
 		res := &model.Person{}
 		idStr := strconv.Itoa(id)
 		res.ID = idStr
@@ -311,7 +308,6 @@ func (r *queryResolver) Country(ctx context.Context, name string) ([]*model.Coun
 		FROM nation WHERE user_name ILIKE $1::text`
 
 	if ok {
-		fmt.Println("NAME FOUND IN REDIS")
 		values, err := redis.Strings(r.RConn.Do("HGETALL", name))
 		if err != nil {
 			err := r.DB.SelectContext(

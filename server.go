@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"nameenrich/aserver"
 	"nameenrich/cfg"
@@ -32,9 +31,12 @@ const (
 )
 
 func main() {
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
 	cMainCfg := &cfg.Cfg{}
 	err := cfg.LoadConfig(cMainCfg)
-	CheckError(err)
+	LogError(errorLog, "Error in LoadConfig: ", err)
 
 	if cMainCfg.Port == "" {
 		cMainCfg.Port = defaultPort
@@ -42,10 +44,11 @@ func main() {
 
 	dBase := graph.Connect(cMainCfg.PostgresURL)
 
-	redisAddr := fmt.Sprintf("%s:%s", cMainCfg.RedisHost, cMainCfg.RedisPort)
+	// конкатенация строк может быть быстрее, но здесь эта операция одноразовая
+	redisAddr := cMainCfg.RedisHost + ":" + cMainCfg.RedisPort
 	rConn, err := redis.Dial("tcp", redisAddr)
 	if err != nil {
-		log.Fatal(err)
+		errorLog.Fatalln("Couldn't connect to Redis: ", err)
 	}
 	defer rConn.Close()
 
@@ -65,36 +68,34 @@ func main() {
 
 	go func() {
 		for {
-			msg, err := kReader.ReadMessage(context.Background())
-			if err != nil {
-				log.Println("couldn't read msg: ", err.Error())
-			}
+			msg, _ := kReader.ReadMessage(context.Background())
 
 			var decMsg types.MsgBase = types.MsgBase{}
 
-			err = CheckMsg(&msg, &decMsg)
+			err = CheckMsg(&msg, &decMsg, errorLog)
 			if err != nil {
 				var msgFailed types.MsgError
 				msgFailed.Errname = err.Error()
 				msgFailed.IncorrectMsg = string(msg.Value)
 
 				msgData, err := json.Marshal(msgFailed)
-				CheckError(err)
+				LogError(errorLog, "Marshalling error", err)
 
 				errWrite := kWriter.WriteMessages(context.Background(), kafka.Message{
 					Value: msgData,
 				})
-				CheckError(errWrite)
+				LogError(errorLog, "Kafka writing error", errWrite)
 
 				continue
 			}
 
 			var enrMsg types.MsgEnriched = types.MsgEnriched{}
 
-			enrich.Enrichment(&decMsg, &enrMsg)
+			err = enrich.Enrichment(&decMsg, &enrMsg)
+			LogError(errorLog, "Enrichment error", err)
 
 			err = storage.WriteData(dBase, rConn, &enrMsg)
-			CheckError(err)
+			LogError(errorLog, "Writing data error", err)
 		}
 	}()
 
@@ -116,7 +117,7 @@ func main() {
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
 
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", cMainCfg.Port)
+	infoLog.Printf("connect to http://localhost:%s/ for GraphQL playground", cMainCfg.Port)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
@@ -126,40 +127,40 @@ func main() {
 	go func() {
 		err := http.ListenAndServe(":"+cMainCfg.Port, nil)
 		if err != nil {
-			log.Fatalf("couldn't start server GraphQL: %v\n", err)
+			log.Fatalf("Couldn't start GraphQL server: %v\n", err)
 		}
 	}()
 
 	go func() {
 		s := <-signalCh
-		log.Printf("\ngot signal %v, graceful shutdown...", s)
+		infoLog.Printf("\ngot signal %v, graceful shutdown...", s)
 		dBase.Close()
 		finishCh <- struct{}{}
 	}()
 
 	<-finishCh
-	fmt.Println("Finished shutdown")
+	infoLog.Println("Finished shutdown")
 }
 
-func CheckMsg(kMsg *kafka.Message, dMsg *types.MsgBase) error {
+func CheckMsg(kMsg *kafka.Message, dMsg *types.MsgBase, errLog *log.Logger) error {
 	err := json.Unmarshal(kMsg.Value, dMsg)
 	if err != nil {
-		fmt.Println("Error unmarshal: ", err.Error())
+		errLog.Println("Error unmarshal: ", err.Error())
 		return err
 	}
 
 	v := validator.New()
 	err = v.Struct(dMsg)
 	if err != nil {
-		fmt.Println("Error validate: ", err.Error())
+		errLog.Println("Error validate: ", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func CheckError(err error) {
+func LogError(lg *log.Logger, msg string, err error) {
 	if err != nil {
-		fmt.Println("Error: ", err.Error())
+		lg.Println(err.Error())
 	}
 }

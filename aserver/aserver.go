@@ -2,7 +2,6 @@ package aserver
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/gomodule/redigo/redis"
@@ -19,7 +18,7 @@ type AServer struct {
 }
 
 func NewServer(host, port string, psql *sqlx.DB, rconn redis.Conn) *AServer {
-	addr := fmt.Sprintf("%s:%s", host, port)
+	addr := host + ":" + port
 	aCfg := atreugo.Config{
 		Addr: addr,
 

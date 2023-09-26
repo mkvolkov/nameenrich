@@ -1,7 +1,6 @@
 package logic
 
 import (
-	"fmt"
 	"nameenrich/enrich"
 	"nameenrich/storage"
 	"nameenrich/types"
@@ -46,7 +45,6 @@ func GetPersonByID(id int, db *sqlx.DB, rconn redis.Conn) (result []storage.GetP
 		return result, nil
 	}
 	if len(values) == 0 {
-		fmt.Println("NOT FOUND IN REDIS")
 		result, err = storage.GetPeopleByID(db, id)
 		if err != nil {
 			return result, err
@@ -72,7 +70,6 @@ func GetPersonByID(id int, db *sqlx.DB, rconn redis.Conn) (result []storage.GetP
 
 		return result, nil
 	} else {
-		fmt.Println("FOUND IN REDIS")
 		res := storage.GetPeopleResult{}
 		res.ID = id
 		res.Name = values[1]

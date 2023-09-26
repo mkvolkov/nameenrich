@@ -2,7 +2,6 @@ package enrich
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"nameenrich/types"
 	"net/http"
@@ -33,27 +32,15 @@ func TestAgeEnrich(t *testing.T) {
 
 		url := "https://api.agify.io/?name=" + test.name
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			fmt.Println("Error creating request: ", err.Error())
-		}
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			fmt.Println("Error doing request: ", err.Error())
-		}
+		resp, _ := httpClient.Do(req)
 
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("Error reading response body: ", err.Error())
-		}
+		data, _ := io.ReadAll(resp.Body)
 
 		var agedata types.AgeData = types.AgeData{}
 
-		err = json.Unmarshal(data, &agedata)
-		if err != nil {
-			fmt.Println("Error unmarshalling age data: ", err.Error())
-		}
+		json.Unmarshal(data, &agedata)
 
 		assert.Equal(agedata.Age, test.expectedAge)
 	}
@@ -79,27 +66,15 @@ func TestGenderEnrich(t *testing.T) {
 
 		url := "https://api.genderize.io/?name=" + test.name
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			fmt.Println("Error creating request: ", err.Error())
-		}
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			fmt.Println("Error doing request: ", err.Error())
-		}
+		resp, _ := httpClient.Do(req)
 
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("Error reading response body: ", err.Error())
-		}
+		data, _ := io.ReadAll(resp.Body)
 
 		var gendata types.GenderData = types.GenderData{}
 
-		err = json.Unmarshal(data, &gendata)
-		if err != nil {
-			fmt.Println("Error unmarshalling age data: ", err.Error())
-		}
+		json.Unmarshal(data, &gendata)
 
 		assert.Equal(gendata.Gender, test.expectedGender)
 	}
@@ -139,27 +114,15 @@ func TestNationEnrich(t *testing.T) {
 
 	url := "https://api.nationalize.io/?name=" + name
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		fmt.Println("Error creating request: ", err.Error())
-	}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		fmt.Println("Error doing request: ", err.Error())
-	}
+	resp, _ := httpClient.Do(req)
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("Error reading response body: ", err.Error())
-	}
+	data, _ := io.ReadAll(resp.Body)
 
 	var nationData types.NationData = types.NationData{}
 
-	err = json.Unmarshal(data, &nationData)
-	if err != nil {
-		fmt.Println("Error unmarshalling age data: ", err.Error())
-	}
+	json.Unmarshal(data, &nationData)
 
 	assert.Equal(Countries, nationData.Nationalities)
 }
