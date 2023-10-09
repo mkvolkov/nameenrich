@@ -12,6 +12,16 @@
 
 Создать базу данных:
 
+Шаг 1 - создать базу данных enrichment (выполняется в psql)
+
+```
+create database enrichment;
+```
+
+Шаг 2 - создать таблицы с помощью миграции. Переменная среды POSTGRESQL_URL
+должна совпадать с переменной POSTGRES_URL, указанной в конфигурации в файле
+app.env
+
 ```
 migrate -database ${POSTGRESQL_URL} -path db/migrations up
 ```
